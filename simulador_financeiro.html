@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador Financeiro · RTS Partners</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg:#0f0f10; --bg2:#161618; --bg3:#1e1e21;
+  --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.13);
+  --text:#f0ede8; --text2:#9b9890; --text3:#5c5a57;
+  --green:#4ade80; --green-dim:rgba(74,222,128,0.13); --green-bd:rgba(74,222,128,0.28);
+  --amber:#fbbf24; --blue:#60a5fa; --red:#f87171; --accent:#c9b99a;
+  --r:12px; --rs:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.app{display:grid;grid-template-columns:300px 1fr;min-height:100vh}
+
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);padding:1.75rem 1.25rem;display:flex;flex-direction:column;gap:1.5rem;position:sticky;top:0;height:100vh;overflow-y:auto}
+.logo{font-family:'DM Serif Display',serif;font-size:1.05rem;color:var(--accent);padding-bottom:1.25rem;border-bottom:1px solid var(--border)}
+.logo span{display:block;font-size:10px;font-family:'DM Sans',sans-serif;font-weight:400;color:var(--text3);margin-top:3px;letter-spacing:.08em;text-transform:uppercase}
+
+.psec{display:flex;flex-direction:column;gap:9px}
+.psec-title{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);padding-bottom:5px;border-bottom:1px solid var(--border)}
+
+.prow{display:flex;align-items:center;gap:6px;min-width:0}
+.prow label{font-size:12px;color:var(--text2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow .unit{font-size:10px;color:var(--text3);white-space:nowrap;flex-shrink:0}
+
+input[type=number], input[type=text]{
+  background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);
+  color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;
+  padding:5px 8px;outline:none;transition:border-color .15s;text-align:right;
+  width:100px;flex-shrink:0;
+}
+input[type=number]:focus, input[type=text]:focus{border-color:var(--accent)}
+input[type=number]::-webkit-inner-spin-button{opacity:.3}
+input[type=number].wide, input[type=text].wide{width:120px}
+input[type=text].rate{width:68px}
+input[type=text].money{width:120px}
+
+/* hint text below rate fields */
+.hint{font-size:10px;color:var(--text3);margin-top:-4px;padding-left:2px}
+.hint span{color:var(--amber)}
+
+.mov-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mov-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:.7rem}
+.mov-card label{font-size:11px;color:var(--text3);display:block;margin-bottom:5px}
+.mov-card input{width:100%;text-align:left}
+
+.main{padding:1.75rem;display:flex;flex-direction:column;gap:1.25rem;overflow-y:auto}
+.main-header{display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap}
+.main-header h1{font-family:'DM Serif Display',serif;font-size:1.5rem;font-weight:400}
+.main-header .sub{font-size:13px;color:var(--text3)}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.kpi{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:1rem 1.1rem;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi.g::before{background:var(--green)}.kpi.a::before{background:var(--amber)}.kpi.b::before{background:var(--blue)}.kpi.c::before{background:var(--accent)}
+.kpi-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+.kpi-val{font-family:'DM Serif Display',serif;font-size:1.55rem;color:var(--text);line-height:1.1}
+.kpi-val.g{color:var(--green)}.kpi-val.a{color:var(--amber)}.kpi-val.b{color:var(--blue)}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:4px}
+
+.tl-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:1rem 1.25rem}
+.tl-title{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:10px}
+
+.tabs-bar{display:flex;border-bottom:1px solid var(--border)}
+.tab-btn{padding:8px 16px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--text3);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-btn:hover{color:var(--text2)}
+.tab-pane{display:none;padding-top:1.1rem}.tab-pane.active{display:block}
+
+.cc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:1.1rem 1.25rem}
+.cc-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:.9rem;flex-wrap:wrap;gap:.5rem}
+.cc-title{font-size:12px;color:var(--text2)}
+.legend{display:flex;gap:14px;flex-wrap:wrap}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3)}
+.leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+.ig{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ic{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:1.1rem}
+.ic h3{font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:12px}
+.ir{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
+.ir:last-child{border-bottom:none}
+.ir .l{color:var(--text2)}.ir .v{font-weight:500;color:var(--text)}
+.ir .v.g{color:var(--green)}.ir .v.a{color:var(--amber)}.ir .v.r{color:var(--red)}
+
+.ct{width:100%;border-collapse:collapse;font-size:12px}
+.ct th{text-align:left;padding:8px 12px;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);font-weight:500}
+.ct td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text2)}
+.ct td:first-child{color:var(--text)}
+.ct td.right{text-align:right}
+.ct tr.peak-row td{color:var(--text);background:rgba(251,191,36,0.06)}
+.ct tr.peak-row td:first-child::after{content:' ↑';color:var(--amber);font-size:10px}
+.ct tr.exhaust-row td{color:var(--red)!important;background:rgba(248,113,113,0.06)}
+.ct tr.exhaust-row td:first-child::after{content:' ✗';font-size:10px}
+
+.ct tr:last-child td{border-bottom:none}
+.ct tr:hover td{background:rgba(255,255,255,.02)}
+.badge{display:inline-block;font-size:9px;font-weight:600;padding:2px 6px;border-radius:20px;letter-spacing:.04em;background:var(--green-dim);color:var(--green);border:1px solid var(--green-bd)}
+.err{color:var(--red);font-size:13px;padding:.75rem 1rem;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);border-radius:var(--rs)}
+
+/* Cenários salvos */
+.scenario-item{display:flex;align-items:center;gap:6px;padding:7px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;transition:border-color .15s}
+.scenario-item:hover{border-color:var(--border2)}
+.scenario-item.active{border-color:var(--accent)}
+.scenario-item .sc-name{font-size:12px;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scenario-item .sc-meta{font-size:10px;color:var(--text3);white-space:nowrap}
+.scenario-item .sc-del{font-size:14px;color:var(--text3);padding:0 2px;line-height:1;flex-shrink:0;background:none;border:none;cursor:pointer;transition:color .1s}
+.scenario-item .sc-del:hover{color:var(--red)}
+.sc-empty{font-size:11px;color:var(--text3);text-align:center;padding:.5rem 0}
+
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:10px}
+
+@media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.ig{grid-template-columns:1fr}}
+@media(max-width:800px){.app{grid-template-columns:1fr}.sidebar{position:static;height:auto}}
+</style>
+</head>
+<body>
+<div class="app">
+
+<aside class="sidebar">
+  <div class="logo">RTS Partners <span>Simulador Patrimonial 2026</span></div>
+
+  <div class="psec">
+    <div class="psec-title">Cliente</div>
+    <div class="prow"><label>Nome</label><input type="text" id="p-nome" placeholder="Ex: João Silva" style="width:160px;text-align:left"></div>
+  </div>
+
+  <div class="psec">
+    <div class="psec-title">Perfil</div>
+    <div class="prow"><label>Idade atual</label><input type="number" id="p-idade" value="52" min="1" step="1" oninput="recalc()"><span class="unit">anos</span></div>
+    <div class="prow"><label>Aposentadoria</label><input type="number" id="p-apos" value="60" min="1" step="1" oninput="recalc()"><span class="unit">anos</span></div>
+    <div class="prow"><label>Expectativa de vida</label><input type="number" id="p-exp" value="90" min="1" step="1" oninput="recalc()"><span class="unit">anos</span></div>
+  </div>
+
+  <div class="psec">
+    <div class="psec-title">Patrimônio & Aportes</div>
+    <div class="prow"><label>Patrimônio inicial</label><input type="text" id="p-pat" value="10.000.000" class="money" oninput="maskMoney(this)" onblur="recalc()"><span class="unit">R$</span></div>
+    <div class="prow"><label>Aporte mensal</label><input type="text" id="p-aporte" value="100.000" class="money" oninput="maskMoney(this)" onblur="recalc()"><span class="unit">R$/mês</span></div>
+    <div class="prow"><label>Herança reservada</label><input type="text" id="p-her" value="5.000.000" class="money" oninput="maskMoney(this)" onblur="recalc()"><span class="unit">R$ hoje</span></div>
+  </div>
+
+  <div class="psec">
+    <div class="psec-title">Taxas anuais — rentabilidade REAL</div>
+    <div class="prow"><label>Rent. pré-aposentadoria</label><input type="text" id="p-rent" value="6,0" class="rate" oninput="maskRate(this)" onblur="recalc()"><span class="unit">% a.a.</span></div>
+    <div class="prow"><label>Rent. aposentadoria</label><input type="text" id="p-rentap" value="5,0" class="rate" oninput="maskRate(this)" onblur="recalc()"><span class="unit">% a.a.</span></div>
+    <div class="prow"><label>Inflação</label><input type="text" id="p-inf" value="6,0" class="rate" oninput="maskRate(this)" onblur="recalc()"><span class="unit">% a.a.</span></div>
+    <div class="hint" id="hint-rates">Nominal pré: <span id="h-pre">—</span> · pós: <span id="h-pos">—</span></div>
+  </div>
+
+  <div class="psec">
+    <div class="psec-title">Retirada na aposentadoria</div>
+    <!-- toggle -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+      <button id="btn-auto" onclick="setRetMode('auto')"
+        style="flex:1;padding:5px 0;font-size:11px;font-family:'DM Sans',sans-serif;border-radius:var(--rs);border:1px solid var(--border2);cursor:pointer;transition:all .15s;background:var(--accent);color:#0f0f10;font-weight:600">
+        Ideal (calc.)
+      </button>
+      <button id="btn-fixa" onclick="setRetMode('fixa')"
+        style="flex:1;padding:5px 0;font-size:11px;font-family:'DM Sans',sans-serif;border-radius:var(--rs);border:1px solid var(--border2);cursor:pointer;transition:all .15s;background:var(--bg3);color:var(--text2);font-weight:400">
+        Fixar valor
+      </button>
+    </div>
+    <div id="ret-fixa-row" class="prow" style="display:none">
+      <label>Retirada desejada</label>
+      <input type="text" id="p-ret-fixa" value="100.000" class="money" oninput="maskMoney(this)" onblur="recalc()">
+      <span class="unit">R$/mês</span>
+    </div>
+    <div class="hint" id="hint-ret" style="display:none"></div>
+  </div>
+
+  <div class="psec">
+    <div class="psec-title">Movimentações extras</div>
+    <div class="mov-grid">
+      <div class="mov-card"><label>Aporte extra (R$/mês)</label><input type="text" id="m-extra" value="0" class="money" oninput="maskMoney(this)" onblur="recalc()"></div>
+      <div class="mov-card"><label>Duração (anos)</label><input type="number" id="m-dur" value="0" step="1" oninput="recalc()"></div>
+      <div class="mov-card"><label>Início (idade)</label><input type="number" id="m-ini" value="55" step="1" oninput="recalc()"></div>
+      <div class="mov-card"><label>Evento pontual (R$)</label><input type="text" id="m-pont" value="0" class="money" oninput="maskMoney(this)" onblur="recalc()"></div>
+    </div>
+  <div class="psec">
+    <div class="psec-title">Cenários salvos</div>
+    <!-- Save row -->
+    <div style="display:flex;gap:6px">
+      <input type="text" id="sc-nome" placeholder="Nome do cenário…"
+        style="flex:1;text-align:left;font-size:12px;min-width:0"
+        onkeydown="if(event.key==='Enter')salvarCenario()">
+      <button onclick="salvarCenario()"
+        style="padding:5px 10px;font-size:11px;font-family:'DM Sans',sans-serif;border-radius:var(--rs);border:1px solid var(--border2);cursor:pointer;background:var(--accent);color:#0f0f10;font-weight:600;white-space:nowrap;flex-shrink:0">
+        Salvar
+      </button>
+    </div>
+    <div id="sc-list" style="display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto">
+      <div class="sc-empty">Nenhum cenário salvo</div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="main-header" style="justify-content:space-between">
+    <div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap">
+      <h1>Planejamento Patrimonial</h1>
+      <span class="sub" id="hdr-sub">—</span>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0">
+      <button id="btn-vp" onclick="toggleVP()" title="Mostrar todos os valores em R$ de hoje"
+        style="display:flex;align-items:center;gap:6px;padding:6px 14px;font-size:12px;font-family:'DM Sans',sans-serif;border-radius:var(--rs);border:1px solid var(--border2);cursor:pointer;background:var(--bg3);color:var(--text2);transition:all .15s;white-space:nowrap">
+        <span style="font-size:14px">◎</span> Valor presente
+      </button>
+      <button onclick="gerarPDF()" title="Exportar relatório em PDF"
+        style="display:flex;align-items:center;gap:6px;padding:6px 14px;font-size:12px;font-family:'DM Sans',sans-serif;border-radius:var(--rs);border:1px solid var(--border2);cursor:pointer;background:var(--bg3);color:var(--text2);transition:all .15s;white-space:nowrap">
+        <span style="font-size:14px">↓</span> PDF
+      </button>
+    </div>
+  </div>
+
+  <div id="err-box" class="err" style="display:none"></div>
+  <div id="vp-banner" style="display:none;padding:.6rem 1rem;border-radius:var(--rs);font-size:12px;background:rgba(201,185,154,0.1);border:1px solid rgba(201,185,154,0.25);color:var(--accent)">
+    ◎ Modo valor presente ativo — todos os valores estão deflacionados para R$ de hoje (inflação <span id="vp-inf-label">—</span>% a.a.)
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi g"><div class="kpi-lbl">Patrimônio na aposent.</div><div class="kpi-val g" id="k-pat">—</div><div class="kpi-sub" id="k-pat-sub">—</div></div>
+    <div class="kpi a" id="kpi-ret"><div class="kpi-lbl" id="kpi-ret-lbl">Retirada mensal ideal</div><div class="kpi-val a" id="k-ret">—</div><div class="kpi-sub" id="k-ret-sub">—</div></div>
+    <div class="kpi b"><div class="kpi-lbl">Herança na aposent.</div><div class="kpi-val b" id="k-her">—</div><div class="kpi-sub" id="k-her-sub">—</div></div>
+    <div class="kpi c"><div class="kpi-lbl">Patrimônio pico</div><div class="kpi-val" id="k-pico">—</div><div class="kpi-sub" id="k-pico-sub">—</div></div>
+  </div>
+
+  <!-- Fixed withdrawal alert bar -->
+  <div id="ret-alert" style="display:none;padding:.75rem 1.1rem;border-radius:var(--rs);font-size:13px;border:1px solid"></div>
+
+  <div class="tl-wrap">
+    <div class="tl-title">Linha do tempo</div>
+    <div id="tl-bar" style="display:flex;height:22px;border-radius:6px;overflow:hidden"></div>
+    <div id="tl-lbl" style="display:flex;margin-top:5px;font-size:10px;color:var(--text3)"></div>
+  </div>
+
+  <div>
+    <div class="tabs-bar">
+      <button class="tab-btn active" onclick="showTab('evol',this)">Evolução</button>
+      <button class="tab-btn" onclick="showTab('fase',this)">Retiradas</button>
+      <button class="tab-btn" onclick="showTab('analise',this)">Análise</button>
+      <button class="tab-btn" onclick="showTab('stress',this)">Cenários</button>
+    </div>
+
+    <div id="tab-evol" class="tab-pane active">
+      <div class="cc">
+        <div class="cc-hdr">
+          <span class="cc-title">Patrimônio nominal vs. valor em R$ de hoje</span>
+          <div class="legend">
+            <div class="leg"><span class="leg-dot" style="background:rgba(74,222,128,0.7)"></span>Acumulação</div>
+            <div class="leg"><span class="leg-dot" style="background:rgba(251,191,36,0.7)"></span>Capital disponível</div>
+            <div class="leg"><span class="leg-dot" style="background:rgba(96,165,250,0.7)"></span>Herança reservada</div>
+            <div class="leg"><span style="display:inline-block;width:18px;height:2px;background:rgba(255,255,255,0.45);border-radius:2px;vertical-align:middle;border-top:1px dashed rgba(255,255,255,0.45)"></span>&nbsp;Valor hoje</div>
+          </div>
+        </div>
+        <div style="position:relative;height:360px"><canvas id="cEvol" role="img" aria-label="Evolução patrimonial nominal vs real">Gráfico.</canvas></div>
+      </div>
+    </div>
+
+    <div id="tab-fase" class="tab-pane">
+      <div class="cc" style="margin-bottom:10px">
+        <div class="cc-hdr">
+          <span class="cc-title">Fase de aposentadoria: patrimônio e retirada mensal</span>
+          <div class="legend">
+            <div class="leg"><span class="leg-dot" style="background:rgba(251,191,36,0.7)"></span>Capital disponível</div>
+            <div class="leg"><span class="leg-dot" style="background:rgba(96,165,250,0.6)"></span>Herança reservada</div>
+            <div class="leg"><span class="leg-dot" style="background:#f87171"></span>Retirada/mês</div>
+          </div>
+        </div>
+        <div style="position:relative;height:300px"><canvas id="cFase" role="img" aria-label="Patrimônio e retiradas">Gráfico.</canvas></div>
+      </div>
+      <div class="cc">
+        <div class="cc-hdr">
+          <span class="cc-title">Tabela anual de retiradas</span>
+          <span style="font-size:11px;color:var(--text3)">Valores nominais · retirada cresce com a inflação</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="ct" id="tabela-retiradas">
+            <thead>
+              <tr>
+                <th>Idade</th>
+                <th>Ano</th>
+                <th style="text-align:right">Retirada mensal</th>
+                <th style="text-align:right">Retirada anual</th>
+                <th style="text-align:right">Patrimônio</th>
+                <th style="text-align:right">Retirada (hoje)</th>
+              </tr>
+            </thead>
+            <tbody id="fase-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-analise" class="tab-pane">
+      <div class="ig">
+        <div class="ic"><h3>Acumulação</h3>
+          <div class="ir"><span class="l">Duração</span><span class="v" id="a-dur">—</span></div>
+          <div class="ir"><span class="l">Total aportado</span><span class="v" id="a-aporte">—</span></div>
+          <div class="ir"><span class="l">Ganho via juros</span><span class="v g" id="a-juros">—</span></div>
+          <div class="ir"><span class="l">Multiplicador do capital</span><span class="v" id="a-mult">—</span></div>
+          <div class="ir"><span class="l">Rent. nominal total</span><span class="v" id="a-nom">—</span></div>
+        </div>
+        <div class="ic"><h3>Retiradas</h3>
+          <div class="ir"><span class="l">Duração</span><span class="v" id="r-dur">—</span></div>
+          <div class="ir"><span class="l">Retirada inicial</span><span class="v a" id="r-ini">—</span></div>
+          <div class="ir"><span class="l">Retirada final estimada</span><span class="v" id="r-fin">—</span></div>
+          <div class="ir"><span class="l">Total retirado (nominal)</span><span class="v" id="r-total">—</span></div>
+          <div class="ir"><span class="l">Patrimônio ao final</span><span class="v" id="r-pfin">—</span></div>
+        </div>
+        <div class="ic"><h3>Valores em R$ de hoje</h3>
+          <div class="ir"><span class="l">Patrimônio na aposent.</span><span class="v" id="c-pat">—</span></div>
+          <div class="ir"><span class="l">Retirada mensal</span><span class="v" id="c-ret">—</span></div>
+          <div class="ir"><span class="l">Herança reservada</span><span class="v" id="c-her">—</span></div>
+          <div class="ir"><span class="l">Patrimônio final</span><span class="v" id="c-pfin">—</span></div>
+        </div>
+        <div class="ic"><h3>Indicadores</h3>
+          <div class="ir"><span class="l">Taxa de retirada anual</span><span class="v" id="ind-wr">—</span></div>
+          <div class="ir"><span class="l">Rent. real pré-aposent.</span><span class="v" id="ind-real">—</span></div>
+          <div class="ir"><span class="l">Rent. real pós-aposent.</span><span class="v" id="ind-real2">—</span></div>
+          <div class="ir"><span class="l">Avaliação geral</span><span class="v" id="ind-av">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-stress" class="tab-pane">
+      <div class="cc" style="margin-bottom:10px">
+        <div class="cc-hdr"><span class="cc-title">Patrimônio na aposentadoria: rent. real × idade de aposentadoria</span></div>
+        <div style="position:relative;height:270px"><canvas id="cStress" role="img" aria-label="Cenários">Cenários.</canvas></div>
+      </div>
+      <div class="cc">
+        <table class="ct">
+          <thead><tr><th>Cenário</th><th>Pat. aposentadoria</th><th>Retirada/mês</th><th>Pat. pico</th><th>Status</th></tr></thead>
+          <tbody id="stress-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<script>
+// ─── mode ──────────────────────────────────────────────────────────────────────
+let retMode = 'auto'; // 'auto' | 'fixa'
+
+function setRetMode(m) {
+  retMode = m;
+  document.getElementById('ret-fixa-row').style.display = m==='fixa' ? 'flex' : 'none';
+  document.getElementById('hint-ret').style.display     = m==='fixa' ? 'block' : 'none';
+  const btnA = document.getElementById('btn-auto');
+  const btnF = document.getElementById('btn-fixa');
+  if (m === 'auto') {
+    btnA.style.background = 'var(--accent)'; btnA.style.color = '#0f0f10'; btnA.style.fontWeight = '600';
+    btnF.style.background = 'var(--bg3)';    btnF.style.color = 'var(--text2)'; btnF.style.fontWeight = '400';
+  } else {
+    btnF.style.background = 'var(--accent)'; btnF.style.color = '#0f0f10'; btnF.style.fontWeight = '600';
+    btnA.style.background = 'var(--bg3)';    btnA.style.color = 'var(--text2)'; btnA.style.fontWeight = '400';
+  }
+  recalc();
+}
+
+// ─── input masks ───────────────────────────────────────────────────────────────
+function maskMoney(el) {
+  const pos = el.selectionStart;
+  const prev = el.value.length;
+  // Strip everything except digits
+  let raw = el.value.replace(/\D/g, '');
+  if (raw === '') { el.value = ''; return; }
+  // Format with dots every 3 digits
+  el.value = parseInt(raw, 10).toLocaleString('pt-BR');
+  // Restore cursor adjusted for added/removed dots
+  const diff = el.value.length - prev;
+  el.selectionStart = el.selectionEnd = Math.max(0, pos + diff);
+}
+
+function maskRate(el) {
+  const pos = el.selectionStart;
+  const prev = el.value.length;
+  // Allow digits, comma, dot
+  let raw = el.value.replace(/[^\d,\.]/g, '');
+  // Normalise: replace dot with comma
+  raw = raw.replace('.', ',');
+  // Only one comma
+  const parts = raw.split(',');
+  if (parts.length > 2) raw = parts[0] + ',' + parts.slice(1).join('');
+  el.value = raw;
+  const diff = el.value.length - prev;
+  el.selectionStart = el.selectionEnd = Math.max(0, pos + diff);
+}
+
+function parseMoney(id) {
+  const el = document.getElementById(id);
+  if (!el) return 0;
+  // Remove dots (thousand sep), replace comma with dot for parseFloat
+  const clean = el.value.replace(/\./g, '').replace(',', '.');
+  return parseFloat(clean) || 0;
+}
+
+function parseRate(id) {
+  const el = document.getElementById(id);
+  if (!el) return 0;
+  const clean = el.value.replace(',', '.');
+  return parseFloat(clean) || 0;
+}
+
+// ─── formatters ────────────────────────────────────────────────────────────────
+function fmtM(v){
+  if(v==null||isNaN(v)||!isFinite(v))return'—';
+  const s=v<0?'-':'',av=Math.abs(v);
+  if(av>=1e9)return s+'R$ '+(av/1e9).toFixed(2)+'Bi';
+  if(av>=1e6)return s+'R$ '+(av/1e6).toFixed(1)+'M';
+  if(av>=1e3)return s+'R$ '+Math.round(av/1e3)+'k';
+  return s+'R$ '+Math.round(av).toLocaleString('pt-BR');
+}
+function fmtP(v,d=2){return(isNaN(v)||!isFinite(v))?'—':v.toFixed(d)+'%'}
+function fmtX(v){return(isNaN(v)||!isFinite(v))?'—':v.toFixed(1)+'x'}
+function g(id){ return parseFloat(document.getElementById(id)?.value) || 0; }
+
+// ─── core simulation ────────────────────────────────────────────────────────────
+//
+// EXACT REPLICATION of the spreadsheet logic:
+//
+// PRE-RETIREMENT:
+//   rent_real and rent_apos are REAL rates (spreadsheet field "Rentabilidade Real")
+//   Nominal rate = rent_real + inflacao  (simple addition, as in the sheet formula)
+//   P_m = P_{m-1} * (1 + rent_real + inf)^(days/252) + aporte
+//   Using avg 21 business days/month (sheet uses actual calendar, ~1% difference)
+//
+// HERANÇA:
+//   User inputs herança in today's R$ (corrigida)
+//   At retirement, nominal herança = her_corr * (1+inf)^(id_apos - id_atual)
+//   This is separated from working capital at retirement month
+//
+// POST-RETIREMENT:
+//   G = working capital (pat_apos - her_nom)
+//   M_0 = ret_mensal (found by goal-seek, see below)
+//   Each month:
+//     M_m = M_{m-1} * (1+inf)^(days/252)          [withdrawal grows with inflation]
+//     G_m = (G_{m-1} - M_m)*(1+rent_apos+inf)^(days/252) - K_{m-1} + J_{m-1}
+//     J_m = K_{m-1} * (1+rent_apos+inf)^(days/252)  [herança × full nominal rate from K base]
+//     K_m = K_{m-1} * (1+inf)^(days/252)             [herança × inflation only]
+//   Total visible wealth = G + K
+//
+// WITHDRAWAL CALIBRATION (goal-seek):
+//   Find ret_mensal such that G at month (exp-id_atual)*12 = 0
+//
+// CORRECTION TO TODAY:
+//   pat_corr = pat_apos / (1+inf)^(id_apos-id_atual)
+//   ret_corr = ret_mensal / (1+inf)^(id_apos-id_atual)
+//   her_corr = input (already in today's R$)
+
+const AVG_DAYS = 21;  // avg business days per month
+
+function simulate(p) {
+  const {idade, apos, exp, pat, aporte, herCorr, rentReal, rentApos, inf,
+         extraVal, extraDur, extraIni, pont} = p;
+
+  if (apos <= idade || exp <= apos || pat <= 0) return null;
+
+  const mPre  = Math.round((apos - idade) * 12);
+  const mApos = Math.round((exp  - apos)  * 12);
+  if (mPre <= 0 || mApos <= 0) return null;
+
+  // Monthly factors
+  const rPreM  = Math.pow(1 + rentReal + inf, AVG_DAYS/252) - 1;
+  const rAposM = Math.pow(1 + rentApos + inf, AVG_DAYS/252) - 1;
+  const rInfM  = Math.pow(1 + inf,            AVG_DAYS/252) - 1;
+
+  // ── Pre-retirement ──────────────────────────────────────────────────
+  const prePat = [pat];
+  for (let m = 1; m <= mPre; m++) {
+    const ageNow = idade + m/12;
+    let ex = 0;
+    if (extraVal && extraDur > 0 && ageNow >= extraIni && ageNow < extraIni + extraDur) ex = extraVal;
+    if (pont !== 0 && m === Math.round((extraIni - idade)*12)) ex += pont;
+    prePat.push(prePat[m-1] * (1 + rPreM) + aporte + ex);
+  }
+
+  const patApos = prePat[mPre];
+  // Herança nominal at retirement = herCorr inflated to retirement date
+  const herNom  = herCorr * Math.pow(1 + inf, apos - idade);
+  const G0      = patApos - herNom;
+  if (G0 <= 0) return null;
+
+  // ── Goal-seek for ret_mensal ─────────────────────────────────────────
+  // Find ret0 such that G at mApos = 0
+  function simPostFinalG(ret0) {
+    let G = G0, M = ret0, K = herNom, J = herNom;
+    for (let m = 0; m < mApos; m++) {
+      const Mnew = M * (1 + rInfM);
+      const Gnew = (G - Mnew) * (1 + rAposM) - K + J;
+      const Jnew = K * (1 + rAposM);
+      const Knew = K * (1 + rInfM);
+      G = Gnew; M = Mnew; K = Knew; J = Jnew;
+    }
+    return G;
+  }
+
+  // Binary search
+  let lo = 0, hi = G0 * 2;
+  // Ensure hi overshoots (G would go very negative)
+  for (let i = 0; i < 200; i++) {
+    const mid = (lo + hi) / 2;
+    if (simPostFinalG(mid) > 0) lo = mid;
+    else hi = mid;
+  }
+  const retM = (lo + hi) / 2;
+
+  // ── Post-retirement simulation (yearly snapshots) ────────────────────
+  const posData = [];  // {age, pat, ret} — total pat = G + K
+  let G = G0, M = retM, K = herNom, J = herNom;
+  let peak = patApos, peakAge = apos;
+
+  posData.push({age: apos, pat: G + K, her: K, ret: M});
+
+  for (let m = 1; m <= mApos; m++) {
+    const Mnew = M * (1 + rInfM);
+    const Gnew = (G - Mnew) * (1 + rAposM) - K + J;
+    const Jnew = K * (1 + rAposM);
+    const Knew = K * (1 + rInfM);
+    G = Gnew; M = Mnew; K = Knew; J = Jnew;
+
+    const totalPat = Math.max(0, G) + K;
+    if (totalPat > peak) { peak = totalPat; peakAge = apos + m/12; }
+
+    // Store yearly
+    if (m % 12 === 0) posData.push({age: apos + m/12, pat: totalPat, her: K, ret: M});
+  }
+
+  const patFin  = posData[posData.length-1].pat;
+  const retFin  = posData[posData.length-1].ret;
+  const infAcum = Math.pow(1 + inf, apos - idade);
+
+  // Yearly pre snapshots
+  const preData = [];
+  for (let yr = 0; yr <= Math.round(apos - idade); yr++) {
+    const mi = Math.min(yr * 12, mPre);
+    preData.push({age: idade + yr, pat: prePat[mi], her: null});
+  }
+
+  return {
+    patApos, patFin, retM, retFin, herNom, herCorr,
+    peak, peakAge, mPre, mApos,
+    patAposCorr: patApos / infAcum,
+    retCorr:     retM   / infAcum,
+    patFinCorr:  patFin / Math.pow(1+inf, exp-idade),
+    preData, posData,
+    retMode: 'auto', duraSte: null
+  };
+}
+
+// ─── fixed withdrawal simulation ───────────────────────────────────────────────
+// Given a desired monthly withdrawal (in today's R$), simulate post-retirement
+// and return: final patrimônio, and age at which patrimônio hits 0 (if it does)
+function simulateFixa(baseResult, retDesejadaCorr, params) {
+  const { patApos, herNom, mApos } = baseResult;
+  const { apos, exp, inf, rentApos, idade } = params;
+
+  const rAposM = Math.pow(1 + rentApos + inf, AVG_DAYS/252) - 1;
+  const rInfM  = Math.pow(1 + inf,            AVG_DAYS/252) - 1;
+
+  // Inflate desired withdrawal to retirement date
+  const ret0 = retDesejadaCorr * Math.pow(1 + inf, apos - idade);
+
+  const G0 = patApos - herNom;
+  let G = G0, M = ret0, K = herNom, J = herNom;
+
+  const posData = [{age: apos, pat: G + K, her: K, ret: M}];
+  let peak = G + K, peakAge = apos;
+  let exaustaM = null;
+
+  const totalMonths = Math.round((exp - apos) * 12);
+
+  for (let m = 1; m <= totalMonths; m++) {
+    const Mnew = M * (1 + rInfM);
+    const Gnew = (G - Mnew) * (1 + rAposM) - K + J;
+    const Jnew = K * (1 + rAposM);
+    const Knew = K * (1 + rInfM);
+    G = Gnew; M = Mnew; K = Knew; J = Jnew;
+
+    const totalPat = Math.max(0, G) + K;
+    if (totalPat > peak) { peak = totalPat; peakAge = apos + m/12; }
+    if (exaustaM === null && G < 0) exaustaM = m;
+
+    if (m % 12 === 0) posData.push({age: apos + m/12, pat: totalPat, her: K, ret: M});
+  }
+
+  const patFin    = posData[posData.length-1].pat;
+  const retFin    = posData[posData.length-1].ret;
+  const infAcum   = Math.pow(1 + inf, apos - idade);
+  const exaustaAge = exaustaM !== null ? apos + exaustaM/12 : null;
+
+  return {
+    ...baseResult,
+    retM: ret0,
+    retFin, patFin,
+    patFinCorr: patFin / Math.pow(1+inf, exp-idade),
+    retCorr:    ret0  / infAcum,
+    peak, peakAge, posData,
+    retMode: 'fixa', exaustaAge
+  };
+}
+
+// ─── charts ────────────────────────────────────────────────────────────────────
+let cEvol, cFase, cStress;
+const GS = {
+  x:{ticks:{color:'#5c5a57',font:{size:11}},grid:{display:false}},
+  y:{ticks:{color:'#5c5a57',font:{size:11},callback:v=>v>=1e6?'R$'+(v/1e6).toFixed(0)+'M':''},grid:{color:'rgba(255,255,255,0.04)'}}
+};
+
+function mkEvol(r, params) {
+  const pre  = r.preData;
+  const pos  = r.posData.slice(1);
+  const all  = [...pre, ...pos];
+  const lbl  = all.map(d => d.age+'a');
+  const inf      = params ? params.inf   : 0.06;
+  const idadeHoj = params ? params.idade : 52;
+
+  function defl(val, age) { return vpMode ? val / Math.pow(1+inf, age-idadeHoj) : val; }
+
+  const livVals = all.map(d => defl(d.her != null ? Math.max(0, d.pat - d.her) : d.pat, d.age));
+  const herVals = all.map(d => defl(d.her != null ? d.her : 0, d.age));
+  const realVals = vpMode ? null : all.map(d => d.pat / Math.pow(1+inf, d.age-idadeHoj));
+
+  const datasets = [
+    {
+      label: vpMode ? 'Capital disponível (hoje)' : 'Capital disponível',
+      data: livVals,
+      backgroundColor: all.map((d,i) => i < pre.length ? 'rgba(74,222,128,0.6)' : 'rgba(251,191,36,0.6)'),
+      borderWidth:0, borderRadius:{topLeft:3,topRight:3,bottomLeft:0,bottomRight:0},
+      stack:'pat', order:2
+    },
+    {
+      label: vpMode ? 'Herança reservada (hoje)' : 'Herança reservada',
+      data: herVals,
+      backgroundColor:'rgba(96,165,250,0.55)',
+      borderWidth:0, borderRadius:0,
+      stack:'pat', order:2
+    }
+  ];
+  if (!vpMode) {
+    datasets.push({
+      label:'Valor em R$ de hoje',
+      data: realVals,
+      type:'line', borderColor:'rgba(255,255,255,0.45)', backgroundColor:'transparent',
+      borderWidth:1.5, borderDash:[4,3], pointRadius:0, pointHoverRadius:4,
+      fill:false, tension:.4, order:1
+    });
+  }
+
+  if (cEvol) cEvol.destroy();
+  cEvol = new Chart(document.getElementById('cEvol'), {
+    type:'bar', data:{labels:lbl, datasets},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+fmtM(c.raw)}}},
+      scales:{
+        x:{stacked:true, ticks:{color:'#5c5a57',font:{size:11},maxTicksLimit:20,maxRotation:0}, grid:{display:false}},
+        y:{stacked:true, ticks:{color:'#5c5a57',font:{size:11},callback:v=>v>=1e6?'R$'+(v/1e6).toFixed(0)+'M':''}, grid:{color:'rgba(255,255,255,0.04)'}}
+      }
+    }
+  });
+}
+
+function mkFase(r, base, params) {
+  const inf  = params ? params.inf  : 0.06;
+  const apos = r.posData[0].age;
+  const idadeHoj = params ? params.idade : apos;
+
+  function defl(val, age) { return vpMode ? val / Math.pow(1+inf, age-idadeHoj) : val; }
+
+  const lbl     = r.posData.map(d => d.age+'a');
+  const livVals = r.posData.map(d => defl(Math.max(0, d.pat - (d.her||0)), d.age));
+  const herVals = r.posData.map(d => defl(d.her||0, d.age));
+  const retVals = r.posData.map(d => defl(d.ret, d.age));
+
+  const datasets = [
+    {
+      label: vpMode ? 'Capital disponível (hoje)' : 'Capital disponível',
+      data: livVals,
+      backgroundColor:'rgba(251,191,36,0.6)', borderWidth:0,
+      borderRadius:{topLeft:3,topRight:3,bottomLeft:0,bottomRight:0},
+      stack:'pat', yAxisID:'y'
+    },
+    {
+      label: vpMode ? 'Herança reservada (hoje)' : 'Herança reservada',
+      data: herVals,
+      backgroundColor:'rgba(96,165,250,0.5)', borderWidth:0, borderRadius:0,
+      stack:'pat', yAxisID:'y'
+    },
+    {
+      label: vpMode ? 'Retirada/mês (hoje)' : 'Retirada/mês',
+      data: retVals,
+      type:'line', borderColor:'#f87171', backgroundColor:'rgba(248,113,113,0.06)',
+      pointRadius:0, pointHoverRadius:4, fill:true, tension:.4, yAxisID:'y2'
+    }
+  ];
+  if (base && r.retMode === 'fixa') {
+    datasets.push({
+      label:'Patrimônio sustentável',
+      data: base.posData.map(d => defl(d.pat, d.age)),
+      type:'line', borderColor:'rgba(74,222,128,0.5)', borderDash:[4,3],
+      backgroundColor:'transparent', pointRadius:0, tension:.4, yAxisID:'y'
+    });
+  }
+
+  if (cFase) cFase.destroy();
+  cFase = new Chart(document.getElementById('cFase'), {
+    type:'bar', data:{labels:lbl, datasets},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+fmtM(c.raw)}}},
+      scales:{
+        x:{stacked:true, ticks:{color:'#5c5a57',font:{size:11}}, grid:{display:false}},
+        y:{stacked:true, ticks:{color:'#5c5a57',font:{size:11},callback:v=>v>=1e6?'R$'+(v/1e6).toFixed(0)+'M':''}, grid:{color:'rgba(255,255,255,0.04)'}},
+        y2:{position:'right', ticks:{color:'#5c5a57',font:{size:11},callback:v=>fmtM(v)}, grid:{display:false}}
+      }
+    }
+  });
+
+  // ── Annual table ──────────────────────────────────────────────────────
+  const peakAge = Math.round(r.peakAge);
+  const tbody = document.getElementById('fase-tbody');
+  tbody.innerHTML = r.posData.map((d, i) => {
+    const isPeak    = Math.round(d.age) === peakAge && i > 0;
+    const isExhaust = r.exaustaAge && Math.round(d.age) >= Math.round(r.exaustaAge) && d.pat <= 0;
+    const rowClass  = isExhaust ? 'exhaust-row' : isPeak ? 'peak-row' : '';
+    const anoCalend = 2026 + Math.round(d.age - idadeHoj);
+    const retHoje   = d.ret  / Math.pow(1+inf, d.age - apos);
+    const patHoje   = d.pat  / Math.pow(1+inf, d.age - idadeHoj);
+    // In VP mode show deflated values; in nominal show both
+    const patShow = vpMode ? patHoje  : d.pat;
+    const retShow = vpMode ? retHoje  : d.ret;
+    const herShow = vpMode ? (d.her||0)/Math.pow(1+inf,d.age-idadeHoj) : (d.her||0);
+    const extraCol = vpMode ? '' : `<td class="right" style="color:var(--text3)">${fmtM(retHoje)}</td>`;
+    return `<tr class="${rowClass}">
+      <td>${Math.round(d.age)} anos</td>
+      <td style="color:var(--text3)">${anoCalend}</td>
+      <td class="right">${fmtM(retShow)}</td>
+      <td class="right" style="color:var(--text2)">${fmtM(retShow*12)}</td>
+      <td class="right">${fmtM(patShow)}</td>
+      ${extraCol}
+      <td class="right" style="color:var(--blue)">${fmtM(herShow)}</td>
+    </tr>`;
+  }).join('');
+
+  // Update table header based on mode
+  const th = document.querySelector('#tabela-retiradas thead tr');
+  if (th) {
+    th.innerHTML = vpMode
+      ? `<th>Idade</th><th>Ano</th><th style="text-align:right">Retirada mensal</th><th style="text-align:right">Retirada anual</th><th style="text-align:right">Patrimônio</th><th style="text-align:right">Herança</th>`
+      : `<th>Idade</th><th>Ano</th><th style="text-align:right">Retirada mensal</th><th style="text-align:right">Retirada anual</th><th style="text-align:right">Patrimônio</th><th style="text-align:right">Retirada (hoje)</th><th style="text-align:right">Herança</th>`;
+  }
+}
+
+function mkStress(params) {
+  const rentScenarios = [
+    {label:'Conservador (4%)', rent:4, rentap:3},
+    {label:'Moderado (6%)',    rent:6, rentap:5},
+    {label:'Experiente (8%)', rent:8, rentap:6},
+    {label:'Audacioso (10%)', rent:10, rentap:7},
+  ];
+  const idades = [50,55,60,65,70].filter(a => a > params.idade);
+  const cores  = ['#4ade80','#60a5fa','#fbbf24','#f87171'];
+
+  const datasets = rentScenarios.map((sc,i) => ({
+    label: sc.label,
+    data: idades.map(a => {
+      const r = simulate({...params, rentReal:sc.rent/100, rentApos:sc.rentap/100, apos:a});
+      return r ? r.patApos : null;
+    }),
+    borderColor: cores[i], backgroundColor: cores[i]+'22',
+    fill:false, tension:.35, pointRadius:4, pointHoverRadius:6
+  }));
+
+  if (cStress) cStress.destroy();
+  cStress = new Chart(document.getElementById('cStress'), {
+    type:'line', data:{labels:idades.map(a=>a+'a'), datasets},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#9b9890', font:{size:11}, boxWidth:10}},
+               tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+fmtM(c.raw)}}},
+      scales:{x:{ticks:{color:'#5c5a57'}, grid:{color:'rgba(255,255,255,0.04)'}},
+              y:{ticks:{color:'#5c5a57', callback:v=>v>=1e6?'R$'+(v/1e6).toFixed(0)+'M':''}, grid:{color:'rgba(255,255,255,0.04)'}}}}
+  });
+
+  const cenarios = [
+    {lbl:'Base atual',          p:{...params}},
+    {lbl:'Rent. real +2%',      p:{...params, rentReal:params.rentReal+0.02}},
+    {lbl:'Rent. real −2%',      p:{...params, rentReal:Math.max(0.001, params.rentReal-0.02)}},
+    {lbl:'Inflação +3%',        p:{...params, inf:params.inf+0.03}},
+    {lbl:'Inflação −2%',        p:{...params, inf:Math.max(0.001, params.inf-0.02)}},
+    {lbl:'Aposent. 5a antes',   p:{...params, apos:Math.max(params.idade+1, params.apos-5)}},
+    {lbl:'Aposent. 5a depois',  p:{...params, apos:Math.min(params.exp-1,   params.apos+5)}},
+    {lbl:'Sem aportes',         p:{...params, aporte:0}},
+    {lbl:'Aportes dobrados',    p:{...params, aporte:params.aporte*2}},
+  ];
+
+  document.getElementById('stress-body').innerHTML = cenarios.map(sc => {
+    const r = simulate(sc.p);
+    if (!r) return `<tr><td>${sc.lbl}</td><td colspan="4" style="color:var(--text3)">Parâmetros inválidos</td></tr>`;
+    const isBase = sc.lbl === 'Base atual';
+    const [cls, txt] = r.patFin > 5e6 ? ['g','✓ Sólido'] : r.patFin > 0 ? ['a','△ Adequado'] : ['r','✗ Risco'];
+    return `<tr>
+      <td>${sc.lbl}${isBase?' <span class="badge">atual</span>':''}</td>
+      <td>${fmtM(r.patApos)}</td>
+      <td>${fmtM(r.retM)}</td>
+      <td>${fmtM(r.peak)}</td>
+      <td class="${cls}">${txt}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── main recalc ───────────────────────────────────────────────────────────────
+function recalc() {
+  const params = {
+    idade:    g('p-idade'),
+    apos:     g('p-apos'),
+    exp:      g('p-exp'),
+    pat:      parseMoney('p-pat'),
+    aporte:   parseMoney('p-aporte'),
+    herCorr:  parseMoney('p-her'),
+    rentReal: parseRate('p-rent')   / 100,
+    rentApos: parseRate('p-rentap') / 100,
+    inf:      parseRate('p-inf')    / 100,
+    extraVal: parseMoney('m-extra'),
+    extraDur: g('m-dur'),
+    extraIni: g('m-ini'),
+    pont:     parseMoney('m-pont')
+  };
+
+  document.getElementById('h-pre').textContent = fmtP(params.rentReal*100 + params.inf*100, 1)+' a.a.';
+  document.getElementById('h-pos').textContent = fmtP(params.rentApos*100 + params.inf*100, 1)+' a.a.';
+
+  const errBox   = document.getElementById('err-box');
+  const retAlert = document.getElementById('ret-alert');
+
+  // Always run base simulation first
+  const base = simulate(params);
+  if (!base) {
+    errBox.style.display = 'block';
+    errBox.textContent = 'Parâmetros inválidos — verifique as idades e o patrimônio inicial.';
+    retAlert.style.display = 'none';
+    return;
+  }
+  errBox.style.display = 'none';
+
+  // Decide which result to use for display
+  let r;
+  if (retMode === 'fixa') {
+    const retDesejadaCorr = parseMoney('p-ret-fixa');
+    r = simulateFixa(base, retDesejadaCorr, params);
+
+    // Update hint below input
+    const hintRet = document.getElementById('hint-ret');
+    hintRet.innerHTML = `Nominal na aposent.: <span>${fmtM(r.retM)}/mês</span>`;
+
+    // Alert bar
+    if (r.exaustaAge !== null) {
+      const anos = Math.floor(r.exaustaAge);
+      const meses = Math.round((r.exaustaAge - anos) * 12);
+      const falta = base.retM - r.retM; // how much below sustainable
+      retAlert.style.display = 'block';
+      retAlert.style.background = 'rgba(248,113,113,0.08)';
+      retAlert.style.borderColor = 'rgba(248,113,113,0.3)';
+      retAlert.style.color = 'var(--red)';
+      retAlert.innerHTML = `⚠ Com esta retirada o patrimônio se esgota aos <strong>${anos} anos</strong> (${meses} meses após a aposentadoria). `+
+        `A retirada sustentável seria ${fmtM(base.retM)}/mês — diferença de ${fmtM(Math.abs(r.retM - base.retM))}/mês.`;
+    } else {
+      const sobra = r.patFin - base.patFin;
+      retAlert.style.display = 'block';
+      retAlert.style.background = 'rgba(74,222,128,0.08)';
+      retAlert.style.borderColor = 'rgba(74,222,128,0.25)';
+      retAlert.style.color = 'var(--green)';
+      retAlert.innerHTML = `✓ Patrimônio sustenta a retirada até os ${params.exp} anos. `+
+        `Patrimônio final: <strong>${fmtM(r.patFin)}</strong> — `+
+        `${sobra >= 0 ? fmtM(sobra)+' acima' : fmtM(Math.abs(sobra))+' abaixo'} do cenário ideal.`;
+    }
+
+    // KPI label update
+    document.getElementById('kpi-ret-lbl').textContent = 'Retirada fixada';
+    document.querySelector('#kpi-ret .kpi-val').style.color = r.exaustaAge ? 'var(--red)' : 'var(--green)';
+  } else {
+    r = base;
+    retAlert.style.display = 'none';
+    document.getElementById('kpi-ret-lbl').textContent = 'Retirada mensal ideal';
+    document.querySelector('#kpi-ret .kpi-val').style.color = 'var(--amber)';
+  }
+
+  const nomeCliente = (document.getElementById('p-nome').value || '').trim();
+  const durPre = params.apos - params.idade;
+  const durPos = params.exp  - params.apos;
+  document.getElementById('hdr-sub').textContent =
+    (nomeCliente ? nomeCliente + ' · ' : '') +
+    `Idade ${params.idade} → ${params.apos} anos · ${durPre} ano${durPre!==1?'s':''} de acumulação`;
+
+  // KPIs
+  document.getElementById('k-pat').textContent     = fmtM(r.patApos);
+  document.getElementById('k-pat-sub').textContent = 'Corrigido: '+fmtM(r.patAposCorr)+' hoje';
+  document.getElementById('k-ret').textContent     = fmtM(r.retM);
+  document.getElementById('k-ret-sub').textContent = 'Corrigida: '+fmtM(r.retCorr)+' hoje';
+  document.getElementById('k-her').textContent     = fmtM(r.herNom);
+  document.getElementById('k-her-sub').textContent = 'Hoje: '+fmtM(r.herCorr);
+  document.getElementById('k-pico').textContent    = fmtM(r.peak);
+  document.getElementById('k-pico-sub').textContent= 'Aprox. aos '+Math.round(r.peakAge)+' anos';
+
+  // Timeline — hide label text when phase is too narrow to fit
+  const totalYrs = durPre + durPos;
+  const prePct   = durPre / totalYrs;
+  const preLabel = prePct >= 0.18 ? `${durPre}a acumulação` : `${durPre}a`;
+  const posLabel = (1 - prePct) >= 0.18 ? `${durPos}a retiradas` : `${durPos}a`;
+  document.getElementById('tl-bar').innerHTML =
+    `<div style="flex:${durPre};background:linear-gradient(90deg,#4ade8033,#4ade8077);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--green);overflow:hidden;white-space:nowrap;min-width:0">${preLabel}</div>`+
+    `<div style="flex:${durPos};background:linear-gradient(90deg,#fbbf2433,#fbbf2077);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--amber);overflow:hidden;white-space:nowrap;min-width:0">${posLabel}</div>`;
+  document.getElementById('tl-lbl').innerHTML =
+    `<span style="flex:${durPre};text-align:left;white-space:nowrap">${params.idade}a</span>`+
+    `<span style="flex:${durPos};text-align:left;white-space:nowrap">${params.apos}a</span>`+
+    `<span style="white-space:nowrap">${params.exp}a</span>`;
+
+  // Análise
+  const totalAp = params.aporte * r.mPre;
+  document.getElementById('a-dur').textContent    = durPre+' anos ('+r.mPre+' meses)';
+  document.getElementById('a-aporte').textContent = fmtM(totalAp);
+  document.getElementById('a-juros').textContent  = fmtM(Math.max(0, r.patApos - params.pat - totalAp));
+  document.getElementById('a-mult').textContent   = fmtX(r.patApos / params.pat);
+  document.getElementById('a-nom').textContent    = fmtP((params.rentReal + params.inf)*100)+' a.a.';
+  document.getElementById('r-dur').textContent    = durPos+' anos ('+r.mApos+' meses)';
+  document.getElementById('r-ini').textContent    = fmtM(r.retM)+'/mês';
+  document.getElementById('r-fin').textContent    = fmtM(r.retFin)+'/mês';
+  const totalRet = r.posData.reduce((s,d,i) => s + (i>0 ? d.ret*12 : 0), 0);
+  document.getElementById('r-total').textContent  = fmtM(totalRet);
+  document.getElementById('r-pfin').textContent   = fmtM(r.patFin);
+  document.getElementById('c-pat').textContent    = fmtM(r.patAposCorr);
+  document.getElementById('c-ret').textContent    = fmtM(r.retCorr)+'/mês';
+  document.getElementById('c-her').textContent    = fmtM(r.herCorr);
+  document.getElementById('c-pfin').textContent   = fmtM(r.patFinCorr);
+
+  const wr = r.retM * 12 / r.patApos * 100;
+  document.getElementById('ind-wr').textContent   = fmtP(wr)+' a.a.';
+  const real1El = document.getElementById('ind-real');
+  real1El.textContent = fmtP(params.rentReal*100)+' a.a.';
+  real1El.className   = 'v '+(params.rentReal >= 0 ? 'g' : 'r');
+  const real2El = document.getElementById('ind-real2');
+  real2El.textContent = fmtP(params.rentApos*100)+' a.a.';
+  real2El.className   = 'v '+(params.rentApos >= 0 ? 'g' : 'r');
+  const avEl = document.getElementById('ind-av');
+  if      (r.patFin > 5e6) { avEl.textContent='✓ Sólido';   avEl.className='v g'; }
+  else if (r.patFin > 0)   { avEl.textContent='△ Adequado'; avEl.className='v a'; }
+  else                      { avEl.textContent='✗ Atenção';  avEl.className='v r'; }
+
+  lastR = r; lastParams = params; lastBase = base;
+  mkEvol(r, params); mkFase(r, base, params); mkStress(params);
+  if (vpMode) applyVP(r, params);
+}
+
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-pane').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(e=>e.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ─── VP mode ───────────────────────────────────────────────────────────────────
+let vpMode = false;
+let lastR = null, lastParams = null, lastBase = null;
+
+function toggleVP() {
+  vpMode = !vpMode;
+  const btn = document.getElementById('btn-vp');
+  if (vpMode) {
+    btn.style.background = 'rgba(201,185,154,0.18)';
+    btn.style.color = 'var(--accent)';
+    btn.style.borderColor = 'rgba(201,185,154,0.4)';
+    document.getElementById('vp-banner').style.display = 'block';
+    document.getElementById('vp-inf-label').textContent = lastParams ? (lastParams.inf*100).toFixed(1) : '—';
+  } else {
+    btn.style.background = 'var(--bg3)';
+    btn.style.color = 'var(--text2)';
+    btn.style.borderColor = 'var(--border2)';
+    document.getElementById('vp-banner').style.display = 'none';
+  }
+  if (lastR && lastParams) applyVP(lastR, lastParams);
+}
+
+function vp(nominalValue, yearsFromNow, inf) {
+  // Deflate nominal value back to today's purchasing power
+  return vpMode ? nominalValue / Math.pow(1 + inf, yearsFromNow) : nominalValue;
+}
+
+function applyVP(r, params) {
+  const inf     = params.inf;
+  const idadeAt = params.idade;
+  const apos    = params.apos;
+  const exp     = params.exp;
+  const yrsApos = apos - idadeAt;
+  const yrsExp  = exp  - idadeAt;
+
+  // KPIs
+  document.getElementById('k-pat').textContent     = fmtM(vp(r.patApos, yrsApos, inf));
+  document.getElementById('k-pat-sub').textContent = vpMode ? 'Em R$ de hoje' : 'Corrigido: '+fmtM(r.patAposCorr)+' hoje';
+  document.getElementById('k-ret').textContent     = fmtM(vp(r.retM, yrsApos, inf));
+  document.getElementById('k-ret-sub').textContent = vpMode ? 'Em R$ de hoje' : 'Corrigida: '+fmtM(r.retCorr)+' hoje';
+  document.getElementById('k-her').textContent     = fmtM(vp(r.herNom, yrsApos, inf));
+  document.getElementById('k-her-sub').textContent = vpMode ? 'Em R$ de hoje' : 'Hoje: '+fmtM(r.herCorr);
+  document.getElementById('k-pico').textContent    = fmtM(vp(r.peak, r.peakAge - idadeAt, inf));
+  document.getElementById('k-pico-sub').textContent= 'Aprox. aos '+Math.round(r.peakAge)+' anos';
+
+  // Charts — rebuild with VP-adjusted data
+  mkEvol(r, params);
+  mkFase(r, vpMode ? null : lastBase, params);
+}
+
+// ─── PDF ───────────────────────────────────────────────────────────────────────
+function gerarPDF() {
+  if (!lastR || !lastParams) return;
+  const r = lastR, p = lastParams;
+  const inf = p.inf, apos = p.apos, idade = p.idade, exp = p.exp;
+  const nomeCliente = (document.getElementById('p-nome').value || '').trim();
+  const nomeFile    = nomeCliente ? nomeCliente.replace(/\s+/g,'-').toLowerCase() : 'cliente';
+  const hoje        = new Date().toLocaleDateString('pt-BR');
+
+  function fmtN(v) {
+    if (v == null || isNaN(v) || !isFinite(v)) return '—';
+    const s = v < 0 ? '-' : '', av = Math.abs(v);
+    if (av >= 1e9) return s + 'R$ ' + (av/1e9).toFixed(2) + 'Bi';
+    if (av >= 1e6) return s + 'R$ ' + (av/1e6).toFixed(1) + 'M';
+    if (av >= 1e3) return s + 'R$ ' + Math.round(av/1e3) + 'k';
+    return s + 'R$ ' + Math.round(av);
+  }
+
+  const rows = r.posData.map((d, i) => {
+    const ano     = 2026 + Math.round(d.age - idade);
+    const retHoje = d.ret / Math.pow(1+inf, d.age - apos);
+    const patHoje = d.pat / Math.pow(1+inf, d.age - idade);
+    const isPeak  = Math.round(d.age) === Math.round(r.peakAge) && i > 0;
+    const bg      = isPeak ? '#1f1c0e' : (i % 2 === 0 ? '#161618' : '#0f0f10');
+    return `<tr style="background:${bg}">
+      <td style="padding:6px 10px;border-bottom:1px solid #2a2a2d;color:${isPeak?'#fbbf24':'#9b9890'}">${Math.round(d.age)}a</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #2a2a2d;color:#5c5a57">${ano}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #2a2a2d;text-align:right;color:#f0ede8">${fmtN(d.pat)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #2a2a2d;text-align:right;color:#5c5a57">${fmtN(patHoje)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #2a2a2d;text-align:right;color:#fbbf24">${fmtN(d.ret)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #2a2a2d;text-align:right;color:#5c5a57">${fmtN(retHoje)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #2a2a2d;text-align:right;color:#60a5fa">${fmtN(d.her||0)}</td>
+    </tr>`;
+  }).join('');
+
+  const kpiStyle = (color) => `background:#161618;border:1px solid #2a2a2d;border-radius:8px;padding:14px 16px;border-top:2px solid ${color}`;
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Relatório · ${nomeCliente || 'RTS Partners'}</title>
+<style>
+  @media print {
+    body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .no-print { display:none !important; }
+    @page { margin: 1.5cm; }
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; background:#0f0f10; color:#f0ede8; padding:40px 48px; font-size:12px; }
+  .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:28px; padding-bottom:18px; border-bottom:1px solid #2a2a2d; }
+  .header-accent { width:100%; height:2px; background:#c9b99a; margin-bottom:28px; border-radius:1px; }
+  .sec-title { font-size:9px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:#5c5a57; margin-bottom:10px; padding-bottom:5px; border-bottom:1px solid #2a2a2d; }
+  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:24px; }
+  .kpi-lbl { font-size:9px; text-transform:uppercase; letter-spacing:.07em; color:#5c5a57; margin-bottom:6px; }
+  .kpi-val { font-size:20px; font-weight:700; line-height:1.1; margin-bottom:3px; }
+  .kpi-sub { font-size:9px; color:#5c5a57; }
+  .params-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:24px; }
+  .param { background:#161618; border:1px solid #2a2a2d; border-radius:6px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center; }
+  .param .lbl { font-size:10px; color:#9b9890; }
+  .param .val { font-size:11px; font-weight:700; color:#f0ede8; }
+  .note { background:#1a1800; border:1px solid #3d3200; border-radius:6px; padding:8px 12px; font-size:10px; color:#9b8a40; margin-bottom:10px; }
+  table { width:100%; border-collapse:collapse; font-size:11px; }
+  thead th { text-align:left; padding:7px 10px; background:#1e1e21; color:#9b9890; font-size:9px; text-transform:uppercase; letter-spacing:.06em; font-weight:600; border-bottom:1px solid #2a2a2d; }
+  thead th:not(:first-child):not(:nth-child(2)) { text-align:right; }
+  .footer { margin-top:28px; padding-top:12px; border-top:1px solid #2a2a2d; font-size:9px; color:#5c5a57; display:flex; justify-content:space-between; }
+  .print-btn { position:fixed; bottom:24px; right:24px; padding:12px 24px; background:#c9b99a; color:#0f0f10; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .print-btn:hover { opacity:.88; }
+</style>
+</head>
+<body>
+
+<div class="header-accent"></div>
+
+<div class="header">
+  <div>
+    ${nomeCliente ? `<div style="font-size:10px;color:#c9b99a;font-weight:700;letter-spacing:.06em;margin-bottom:6px">${nomeCliente.toUpperCase()}</div>` : ''}
+    <div style="font-size:22px;font-weight:700;color:#f0ede8;margin-bottom:4px">Planejamento Patrimonial</div>
+    <div style="font-size:11px;color:#9b9890">Aposentadoria aos ${p.apos} anos · expectativa ${p.exp} anos · ${p.apos - p.idade} anos de acumulação</div>
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:11px;font-weight:700;color:#c9b99a;margin-bottom:3px">RTS Partners</div>
+    <div style="font-size:10px;color:#5c5a57">Simulador Patrimonial 2026</div>
+    <div style="font-size:10px;color:#5c5a57;margin-top:3px">${hoje}</div>
+  </div>
+</div>
+
+<div style="margin-bottom:24px">
+  <div class="sec-title">Resultados principais</div>
+  <div class="kpi-grid">
+    <div style="${kpiStyle('#4ade80')}">
+      <div class="kpi-lbl">Patrimônio na aposent.</div>
+      <div class="kpi-val" style="color:#4ade80">${fmtN(r.patApos)}</div>
+      <div class="kpi-sub">Hoje: ${fmtN(r.patAposCorr)}</div>
+    </div>
+    <div style="${kpiStyle('#fbbf24')}">
+      <div class="kpi-lbl">Retirada mensal ideal</div>
+      <div class="kpi-val" style="color:#fbbf24">${fmtN(r.retM)}</div>
+      <div class="kpi-sub">Hoje: ${fmtN(r.retCorr)}</div>
+    </div>
+    <div style="${kpiStyle('#60a5fa')}">
+      <div class="kpi-lbl">Herança na aposentadoria</div>
+      <div class="kpi-val" style="color:#60a5fa">${fmtN(r.herNom)}</div>
+      <div class="kpi-sub">Hoje: ${fmtN(r.herCorr)}</div>
+    </div>
+    <div style="${kpiStyle('#c9b99a')}">
+      <div class="kpi-lbl">Patrimônio pico estimado</div>
+      <div class="kpi-val" style="color:#f0ede8">${fmtN(r.peak)}</div>
+      <div class="kpi-sub">Aos ${Math.round(r.peakAge)} anos</div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-bottom:24px">
+  <div class="sec-title">Parâmetros</div>
+  <div class="params-grid">
+    <div class="param"><span class="lbl">Idade atual</span><span class="val">${p.idade} anos</span></div>
+    <div class="param"><span class="lbl">Aposentadoria</span><span class="val">${p.apos} anos</span></div>
+    <div class="param"><span class="lbl">Expectativa de vida</span><span class="val">${p.exp} anos</span></div>
+    <div class="param"><span class="lbl">Patrimônio inicial</span><span class="val">${fmtN(p.pat)}</span></div>
+    <div class="param"><span class="lbl">Aporte mensal</span><span class="val">${fmtN(p.aporte)}</span></div>
+    <div class="param"><span class="lbl">Herança reservada</span><span class="val">${fmtN(p.herCorr)}</span></div>
+    <div class="param"><span class="lbl">Rent. pré-aposent. (real)</span><span class="val">${(p.rentReal*100).toFixed(1)}% a.a.</span></div>
+    <div class="param"><span class="lbl">Rent. aposentadoria (real)</span><span class="val">${(p.rentApos*100).toFixed(1)}% a.a.</span></div>
+    <div class="param"><span class="lbl">Inflação</span><span class="val">${(p.inf*100).toFixed(1)}% a.a.</span></div>
+  </div>
+</div>
+
+<div>
+  <div class="sec-title">Evolução anual na aposentadoria</div>
+  <div class="note">Coluna "Hoje" deflacionada para R$ de ${new Date().getFullYear()} · inflação ${(p.inf*100).toFixed(1)}% a.a.</div>
+  <table>
+    <thead><tr>
+      <th>Idade</th><th>Ano</th>
+      <th style="text-align:right">Patrimônio</th>
+      <th style="text-align:right">Pat. hoje</th>
+      <th style="text-align:right">Retirada/mês</th>
+      <th style="text-align:right">Ret. hoje</th>
+      <th style="text-align:right">Herança</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+</div>
+
+<div class="footer">
+  <span>RTS Partners · Simulador Patrimonial 2026${nomeCliente ? ' · ' + nomeCliente : ''}</span>
+  <span>Caráter ilustrativo. Não constitui recomendação de investimento.</span>
+</div>
+
+<button class="print-btn no-print" onclick="window.print()">⬇ Salvar como PDF</button>
+
+</body>
+</html>`;
+
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `rts-planejamento-${nomeFile}-${new Date().toISOString().slice(0,10)}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+
+// ─── cenários ──────────────────────────────────────────────────────────────────
+const SC_KEY = 'rts_simulador_cenarios';
+let activeSc = null;
+
+function getCenarios() {
+  try { return JSON.parse(localStorage.getItem(SC_KEY) || '[]'); } catch { return []; }
+}
+function saveCenarios(list) { localStorage.setItem(SC_KEY, JSON.stringify(list)); }
+
+function capturarParams() {
+  return {
+    nome:   (document.getElementById('p-nome').value || '').trim(),
+    idade:  document.getElementById('p-idade').value,
+    apos:   document.getElementById('p-apos').value,
+    exp:    document.getElementById('p-exp').value,
+    pat:    document.getElementById('p-pat').value,
+    aporte: document.getElementById('p-aporte').value,
+    her:    document.getElementById('p-her').value,
+    rent:   document.getElementById('p-rent').value,
+    rentap: document.getElementById('p-rentap').value,
+    inf:    document.getElementById('p-inf').value,
+    retMode, retFixa: document.getElementById('p-ret-fixa').value,
+    extra:  document.getElementById('m-extra').value,
+    dur:    document.getElementById('m-dur').value,
+    ini:    document.getElementById('m-ini').value,
+    pont:   document.getElementById('m-pont').value,
+  };
+}
+
+function carregarParams(p) {
+  document.getElementById('p-nome').value   = p.nome   || '';
+  document.getElementById('p-idade').value  = p.idade  || 52;
+  document.getElementById('p-apos').value   = p.apos   || 60;
+  document.getElementById('p-exp').value    = p.exp    || 90;
+  document.getElementById('p-pat').value    = p.pat    || '10.000.000';
+  document.getElementById('p-aporte').value = p.aporte || '100.000';
+  document.getElementById('p-her').value    = p.her    || '5.000.000';
+  document.getElementById('p-rent').value   = p.rent   || '6,0';
+  document.getElementById('p-rentap').value = p.rentap || '5,0';
+  document.getElementById('p-inf').value    = p.inf    || '6,0';
+  document.getElementById('p-ret-fixa').value = p.retFixa || '100.000';
+  document.getElementById('m-extra').value  = p.extra  || '0';
+  document.getElementById('m-dur').value    = p.dur    || 0;
+  document.getElementById('m-ini').value    = p.ini    || 55;
+  document.getElementById('m-pont').value   = p.pont   || '0';
+  if (p.retMode && p.retMode !== retMode) setRetMode(p.retMode);
+  else recalc();
+}
+
+function salvarCenario() {
+  const nomeInput = document.getElementById('sc-nome');
+  const nome = nomeInput.value.trim();
+  if (!nome) { nomeInput.focus(); return; }
+  const list = getCenarios();
+  const id   = Date.now().toString();
+  list.unshift({
+    id, nome,
+    params: capturarParams(),
+    apos:   document.getElementById('p-apos').value,
+    data:   new Date().toLocaleDateString('pt-BR')
+  });
+  saveCenarios(list);
+  nomeInput.value = '';
+  activeSc = id;
+  renderCenarios();
+}
+
+function carregarCenario(id) {
+  const sc = getCenarios().find(s => s.id === id);
+  if (!sc) return;
+  activeSc = id;
+  carregarParams(sc.params);
+  renderCenarios();
+}
+
+function deletarCenario(id, e) {
+  e.stopPropagation();
+  saveCenarios(getCenarios().filter(s => s.id !== id));
+  if (activeSc === id) activeSc = null;
+  renderCenarios();
+}
+
+function renderCenarios() {
+  const list = getCenarios();
+  const el   = document.getElementById('sc-list');
+  if (!list.length) {
+    el.innerHTML = '<div class="sc-empty">Nenhum cenário salvo</div>';
+    return;
+  }
+  el.innerHTML = list.map(sc => `
+    <div class="scenario-item${sc.id===activeSc?' active':''}" onclick="carregarCenario('${sc.id}')">
+      <div style="flex:1;min-width:0">
+        <div class="sc-name">${sc.nome}</div>
+        <div class="sc-meta">${sc.data}${sc.params.nome?' · '+sc.params.nome:''} · apos. ${sc.apos}a</div>
+      </div>
+      <button class="sc-del" onclick="deletarCenario('${sc.id}',event)" title="Remover">✕</button>
+    </div>`).join('');
+}
+
+renderCenarios();
+recalc();
+</script>
+</body>
+</html>
