@@ -6,6 +6,7 @@
 <title>Simulador Financeiro · RTS Partners</title>
 <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/3.0.1/chartjs-plugin-annotation.min.js"></script>
 <style>
 :root {
   --bg:#1A1A1B; --bg2:#222224; --bg3:#2a2a2c;
@@ -115,6 +116,15 @@ input[type=text].money{width:120px}
 .scenario-item .sc-del:hover{color:var(--red)}
 .sc-empty{font-size:11px;color:var(--text3);text-align:center;padding:.5rem 0}
 
+/* Eventos pontuais */
+.ev-item{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:.5rem .7rem;display:flex;flex-direction:column;gap:6px;overflow:hidden}
+.ev-row{display:flex;align-items:center;gap:5px;min-width:0}
+.ev-nome{flex:1;min-width:0;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);color:var(--text);font-family:'Ubuntu',sans-serif;font-size:12px;padding:4px 7px;outline:none;text-align:left}
+.ev-nome:focus{border-color:var(--accent)}
+.ev-nome::placeholder{color:var(--text3)}
+.ev-del{font-size:13px;color:var(--text3);background:none;border:none;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0}
+.ev-del:hover{color:var(--red)}
+
 #sc-list:not(:has(.scenario-item)){overflow:hidden}
 #sc-list{scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
 
@@ -212,22 +222,16 @@ input[type=text].money{width:120px}
       <div class="mov-card"><label>Duração (anos)</label><input type="number" id="m-dur" value="0" step="1" oninput="recalc()"></div>
       <div class="mov-card"><label>Início (idade)</label><input type="number" id="m-ini" value="55" step="1" oninput="recalc()"></div>
 
-      <!-- Evento pontual -->
-      <div class="mov-card" style="flex-direction:column;align-items:stretch;gap:6px">
-        <div style="display:flex;align-items:center;justify-content:space-between">
-          <label style="font-size:10px;color:var(--text3);font-weight:500;margin:0">Evento pontual</label>
-          <div class="tipo-btn-group">
-            <button id="m-pont-tipo-e" class="tipo-btn entrada" onclick="setMovTipo('pont','e')" title="Entrada (ex: herança, venda)">+</button>
-            <button id="m-pont-tipo-s" class="tipo-btn inactive" onclick="setMovTipo('pont','s')" title="Saída (ex: imóvel, festa)">−</button>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <input type="text" id="m-pont" value="0" class="money" style="flex:1;width:auto" oninput="maskMoney(this)" onblur="recalc()">
-          <span style="font-size:9px;color:var(--text3);white-space:nowrap">R$</span>
-        </div>
-        <div style="font-size:9px;color:var(--text3)" id="m-pont-hint">Ocorre na idade de início</div>
-      </div>
+    </div>
+  </div>
 
+  <div class="psec">
+    <div class="psec-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>Eventos pontuais</span>
+      <button onclick="addEvento()" style="padding:2px 9px;font-size:11px;font-family:'Ubuntu',sans-serif;border-radius:var(--rs);border:1px solid var(--border2);cursor:pointer;background:var(--accent);color:#0f0f10;font-weight:600">+ Novo</button>
+    </div>
+    <div id="ev-list" style="display:flex;flex-direction:column;gap:6px">
+      <div style="font-size:11px;color:var(--text3);text-align:center;padding:.4rem 0" id="ev-empty">Nenhum evento adicionado</div>
     </div>
   </div>
 
@@ -425,27 +429,92 @@ input[type=text].money{width:120px}
 // ─── mov tipo ─────────────────────────────────────────────────────────────────
 let retMode = 'auto'; // 'auto' | 'fixa'
 let movExtraTipo = 'e'; // 'e'=entrada 's'=saída
-let movPontTipo  = 'e';
+
+// ─── Eventos pontuais ──────────────────────────────────────────────────────────
+let eventos = []; // [{id, nome, valor, idade, tipo:'e'|'s'}]
+let evNextId = 1;
 
 function setMovTipo(field, tipo) {
-  if (field === 'extra') {
-    movExtraTipo = tipo;
-    const btnE = document.getElementById('m-extra-tipo-e');
-    const btnS = document.getElementById('m-extra-tipo-s');
-    const hint = document.getElementById('m-extra-hint');
-    btnE.className = 'tipo-btn ' + (tipo==='e' ? 'entrada' : 'inactive');
-    btnS.className = 'tipo-btn ' + (tipo==='s' ? 'saida'   : 'inactive');
-    if (hint) hint.textContent = tipo==='e' ? 'Entrada que soma ao patrimônio' : 'Saída mensal recorrente';
-  } else {
-    movPontTipo = tipo;
-    const btnE = document.getElementById('m-pont-tipo-e');
-    const btnS = document.getElementById('m-pont-tipo-s');
-    const hint = document.getElementById('m-pont-hint');
-    btnE.className = 'tipo-btn ' + (tipo==='e' ? 'entrada' : 'inactive');
-    btnS.className = 'tipo-btn ' + (tipo==='s' ? 'saida'   : 'inactive');
-    if (hint) hint.textContent = tipo==='e' ? 'Entrada pontual (ex: venda, herança)' : 'Saída pontual (ex: imóvel, festa)';
+  movExtraTipo = tipo;
+  const btnE = document.getElementById('m-extra-tipo-e');
+  const btnS = document.getElementById('m-extra-tipo-s');
+  const hint = document.getElementById('m-extra-hint');
+  if (btnE) btnE.className = 'tipo-btn ' + (tipo==='e' ? 'entrada' : 'inactive');
+  if (btnS) btnS.className = 'tipo-btn ' + (tipo==='s' ? 'saida'   : 'inactive');
+  if (hint) hint.textContent = tipo==='e' ? 'Entrada que soma ao patrimônio' : 'Saída mensal recorrente';
+  recalc();
+}
+
+function addEvento(ev) {
+  const id = evNextId++;
+  eventos.push(ev || {id, nome:'', valor:0, idade:60, tipo:'e'});
+  renderEventos();
+  recalc();
+}
+
+function removeEvento(id) {
+  eventos = eventos.filter(e => e.id !== id);
+  renderEventos();
+  recalc();
+}
+
+function setEventoTipo(id, tipo) {
+  const ev = eventos.find(e => e.id === id);
+  if (!ev) return;
+  ev.tipo = tipo;
+  // update buttons in DOM
+  const item = document.querySelector('.ev-item[data-id="'+id+'"]');
+  if (item) {
+    item.querySelectorAll('.tipo-btn')[0].className = 'tipo-btn ' + (tipo==='e' ? 'entrada' : 'inactive');
+    item.querySelectorAll('.tipo-btn')[1].className = 'tipo-btn ' + (tipo==='s' ? 'saida'   : 'inactive');
   }
   recalc();
+}
+
+function updateEvento(id, field, value) {
+  const ev = eventos.find(e => e.id === id);
+  if (ev) ev[field] = value;
+}
+
+function parseMoney2(el) {
+  return parseFloat(el.value.replace(/\./g,'').replace(',','.')) || 0;
+}
+
+function renderEventos() {
+  const list  = document.getElementById('ev-list');
+  const empty = document.getElementById('ev-empty');
+  if (!list) return;
+  if (empty) empty.style.display = eventos.length ? 'none' : 'block';
+  list.querySelectorAll('.ev-item').forEach(el => el.remove());
+  eventos.forEach(ev => {
+    const div = document.createElement('div');
+    div.className = 'ev-item';
+    div.dataset.id = ev.id;
+    const valFmt = ev.valor ? Math.round(ev.valor).toLocaleString('pt-BR') : '0';
+    div.innerHTML = `
+      <div class="ev-row">
+        <input class="ev-nome" placeholder="Ex: Venda da casa…" value="${ev.nome.replace(/"/g,'&quot;')}"
+          oninput="updateEvento(${ev.id},'nome',this.value)">
+        <button class="ev-del" onclick="removeEvento(${ev.id})" title="Remover">✕</button>
+      </div>
+      <div class="ev-row">
+        <div class="tipo-btn-group">
+          <button class="tipo-btn ${ev.tipo==='e'?'entrada':'inactive'}" onclick="setEventoTipo(${ev.id},'e')" title="Entrada">+</button>
+          <button class="tipo-btn ${ev.tipo==='s'?'saida':'inactive'}"   onclick="setEventoTipo(${ev.id},'s')" title="Saída">−</button>
+        </div>
+        <input type="text" class="money" style="flex:1;min-width:0;width:0;text-align:right" value="${valFmt}"
+          oninput="maskMoney(this);updateEvento(${ev.id},'valor',parseMoney2(this))"
+          onblur="recalc()">
+        <span style="font-size:9px;color:var(--text3);flex-shrink:0">R$</span>
+      </div>
+      <div class="ev-row">
+        <label style="font-size:9px;color:var(--text3);flex:1">Idade</label>
+        <input type="number" step="1" min="1" style="width:70px;flex-shrink:0;text-align:right" value="${ev.idade}"
+          oninput="updateEvento(${ev.id},'idade',+this.value||0);recalc()">
+        <span style="font-size:9px;color:var(--text3);flex-shrink:0">anos</span>
+      </div>`;
+    list.appendChild(div);
+  });
 }
 
 // ─── mode ─────────────────────────────────────────────────────────────────────
@@ -520,7 +589,7 @@ const AVG_DAYS = 21;
 
 function simulate(p) {
   const {idade, apos, exp, pat, aporte, herCorr, rentReal, rentApos, inf,
-         extraVal, extraDur, extraIni, pont} = p;
+         extraVal, extraDur, extraIni, eventos: evs=[]} = p;
 
   if (apos <= idade || exp <= apos || pat <= 0) return null;
 
@@ -543,10 +612,12 @@ function simulate(p) {
         ? extraVal * Math.pow(1 + inf, ageNow - idade)
         : extraVal;
     }
-    if (pont !== 0 && ageNow >= extraIni && ageNow < extraIni + 1/12) {
-      ex += pont < 0
-        ? pont * Math.pow(1 + inf, ageNow - idade)
-        : pont;
+    for (const ev of evs) {
+      if (ageNow >= ev.idade && ageNow < ev.idade + 1/12) {
+        ex += ev.val < 0
+          ? ev.val * Math.pow(1 + inf, ageNow - idade)
+          : ev.val;
+      }
     }
     prePat.push(prePat[m-1] * (1 + rPreM) + aporte + ex);
   }
@@ -566,10 +637,12 @@ function simulate(p) {
           ? extraVal * Math.pow(1 + inf, ageNow - idade)
           : extraVal;
       }
-      if (pont !== 0 && ageNow >= extraIni && ageNow < extraIni + 1/12) {
-        ex += pont < 0
-          ? pont * Math.pow(1 + inf, ageNow - idade)
-          : pont;
+      for (const ev of evs) {
+        if (ageNow >= ev.idade && ageNow < ev.idade + 1/12) {
+          ex += ev.val < 0
+            ? ev.val * Math.pow(1 + inf, ageNow - idade)
+            : ev.val;
+        }
       }
       const Mnew = M * (1 + rInfM);
       const Gnew = (G - Mnew + ex) * (1 + rAposM) - K + J;
@@ -602,10 +675,12 @@ function simulate(p) {
         ? extraVal * Math.pow(1 + inf, ageNow - idade)
         : extraVal;
     }
-    if (pont !== 0 && ageNow >= extraIni && ageNow < extraIni + 1/12) {
-      ex += pont < 0
-        ? pont * Math.pow(1 + inf, ageNow - idade)
-        : pont;
+    for (const ev of evs) {
+      if (ageNow >= ev.idade && ageNow < ev.idade + 1/12) {
+        ex += ev.val < 0
+          ? ev.val * Math.pow(1 + inf, ageNow - idade)
+          : ev.val;
+      }
     }
     const Mnew = M * (1 + rInfM);
     const Gnew = (G - Mnew + ex) * (1 + rAposM) - K + J;
@@ -642,7 +717,7 @@ function simulate(p) {
 // ─── fixed withdrawal simulation ──────────────────────────────────────────────
 function simulateFixa(baseResult, retDesejadaCorr, params) {
   const { patApos, herNom, mApos } = baseResult;
-  const { apos, exp, inf, rentApos, idade, extraVal, extraDur, extraIni, pont } = params;
+  const { apos, exp, inf, rentApos, idade, extraVal, extraDur, extraIni, eventos: evs=[] } = params;
 
   const rAposM = Math.pow(1 + rentApos + inf, AVG_DAYS/252) - 1;
   const rInfM  = Math.pow(1 + inf,            AVG_DAYS/252) - 1;
@@ -666,10 +741,12 @@ function simulateFixa(baseResult, retDesejadaCorr, params) {
         ? extraVal * Math.pow(1 + inf, ageNow - idade)
         : extraVal;
     }
-    if (pont !== 0 && ageNow >= extraIni && ageNow < extraIni + 1/12) {
-      ex += pont < 0
-        ? pont * Math.pow(1 + inf, ageNow - idade)
-        : pont;
+    for (const ev of evs) {
+      if (ageNow >= ev.idade && ageNow < ev.idade + 1/12) {
+        ex += ev.val < 0
+          ? ev.val * Math.pow(1 + inf, ageNow - idade)
+          : ev.val;
+      }
     }
     const Mnew = M * (1 + rInfM);
     const Gnew = (G - Mnew + ex) * (1 + rAposM) - K + J;
@@ -742,12 +819,48 @@ function mkEvol(r, params) {
     });
   }
 
+  // Build Chart.js annotations for eventos
+  const annotationPlugin = Chart.registry.plugins.get('annotation');
+  const annotations = {};
+  if (lastParams) {
+    eventos.forEach((ev, i) => {
+      const idx = all.findIndex(d => Math.round(d.age) === Math.round(ev.idade));
+      if (idx < 0) return;
+      const isEntry = ev.tipo === 'e';
+      const color = isEntry ? 'rgba(74,222,128,0.9)' : 'rgba(248,113,113,0.9)';
+      const label = (ev.nome || (isEntry ? 'Entrada' : 'Saída')) + ' ' + fmtM(ev.valor);
+      annotations['ev'+i] = {
+        type: 'line',
+        xMin: idx, xMax: idx,
+        borderColor: color,
+        borderWidth: 1.5,
+        borderDash: [3,3],
+        label: {
+          display: true,
+          content: (isEntry ? '▲ ' : '▼ ') + label,
+          color: color,
+          backgroundColor: 'rgba(26,26,27,0.88)',
+          font: {size: 10, family: "'Ubuntu', sans-serif"},
+          padding: {x:6, y:3},
+          position: i % 2 === 0 ? '5%' : '25%',
+          yAdjust: i % 2 === 0 ? -8 : -8,
+        }
+      };
+    });
+  }
+
+  const hasAnnotations = Object.keys(annotations).length > 0;
+
   if (cEvol) cEvol.destroy();
   cEvol = new Chart(document.getElementById('cEvol'), {
     type:'bar', data:{labels:lbl, datasets},
     options:{
       responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+fmtM(c.raw)}}},
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+fmtM(c.raw)}},
+        ...(hasAnnotations ? {annotation:{annotations}} : {})
+      },
       scales:{
         x:{stacked:true, ticks:{color:'#5c5a57',font:{size:11},maxTicksLimit:20,maxRotation:0}, grid:{display:false}},
         y:{stacked:true, ticks:{color:'#5c5a57',font:{size:11},callback:v=>v>=1e6?'R$'+(v/1e6).toFixed(0)+'M':''}, grid:{color:'rgba(255,255,255,0.04)'}}
@@ -875,7 +988,7 @@ function mkStress(params) {
   });
 
   const cenarios = [
-    {lbl:'Base atual',          p:{...params}},
+    {lbl:'Base atual',          p:{...params, eventos: eventos.map(e=>({...e,val:e.valor*(e.tipo==='s'?-1:1)}))}},
     {lbl:'Rent. real +2%',      p:{...params, rentReal:params.rentReal+0.02}},
     {lbl:'Rent. real −2%',      p:{...params, rentReal:Math.max(0.001, params.rentReal-0.02)}},
     {lbl:'Inflação +3%',        p:{...params, inf:params.inf+0.03}},
@@ -913,11 +1026,10 @@ function recalc() {
     rentReal: parseRate('p-rent')   / 100,
     rentApos: parseRate('p-rentap') / 100,
     inf:      parseRate('p-inf')    / 100,
-    // sign applied by movExtraTipo / movPontTipo
     extraVal: parseMoney('m-extra') * (movExtraTipo === 's' ? -1 : 1),
     extraDur: g('m-dur'),
     extraIni: g('m-ini'),
-    pont:     parseMoney('m-pont')  * (movPontTipo  === 's' ? -1 : 1)
+    eventos:  eventos.map(e => ({...e, val: e.valor * (e.tipo==='s' ? -1 : 1)}))
   };
 
   document.getElementById('h-pre').textContent = fmtP(params.rentReal*100 + params.inf*100, 1)+' a.a.';
@@ -1146,7 +1258,10 @@ function gerarPDF() {
   const posData = r.posData.slice(1).map(d => ({age: Math.round(d.age), pat: defl(d.pat, d.age), her: defl(d.her||0, d.age), pre: false}));
   const allData = [...preData, ...posData];
   const n = allData.length;
-  const cW = 660, cH = 210, padL = 52, padR = 12, padT = 12, padB = 28;
+  const hasEvs = eventos.length > 0;
+  const cW = 660, padL = 52, padR = 12, padB = 28;
+  const padT = hasEvs ? 52 : 12;   // extra top room for event labels
+  const cH   = hasEvs ? 250 : 210; // taller chart when events present
   const maxPat = Math.max(...allData.map(d => d.pat)) * 1.1;
 
   function ys(v) { return padT + (cH - padT - padB) * (1 - v / maxPat); }
@@ -1197,12 +1312,44 @@ function gerarPDF() {
 
   const aposIdx = allData.findIndex(d => !d.pre);
   const aposX   = aposIdx >= 0 ? xp(aposIdx) : null;
-  const aposLine = aposX ? `<line x1="${aposX.toFixed(1)}" y1="${padT}" x2="${aposX.toFixed(1)}" y2="${baseY.toFixed(1)}" stroke="#c9b99a" stroke-width="1" stroke-dasharray="4,3" opacity="0.6"/>
-    <rect x="${(aposX+4).toFixed(1)}" y="${padT}" width="62" height="13" rx="3" fill="rgba(201,185,154,0.12)"/>
-    <text x="${(aposX+35).toFixed(1)}" y="${(padT+9).toFixed(1)}" text-anchor="middle" font-size="7.5" fill="#b09a75" font-family="Helvetica Neue,Arial,sans-serif">aposentadoria</text>` : '';
+  // When events exist, push aposentadoria label to bottom to avoid overlap
+  const aposLabelY = hasEvs ? baseY - 16 : padT;
+  const aposLine = aposX ? `<line x1="${aposX.toFixed(1)}" y1="0" x2="${aposX.toFixed(1)}" y2="${baseY.toFixed(1)}" stroke="#c9b99a" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>
+    <rect x="${(aposX+3).toFixed(1)}" y="${aposLabelY}" width="62" height="13" rx="3" fill="rgba(201,185,154,0.12)"/>
+    <text x="${(aposX+34).toFixed(1)}" y="${(aposLabelY+9).toFixed(1)}" text-anchor="middle" font-size="7.5" fill="#b09a75" font-family="Helvetica Neue,Arial,sans-serif">aposentadoria</text>` : '';
 
   const peakIdx = allData.reduce((mi, d, i, arr) => d.pat > arr[mi].pat ? i : mi, 0);
   const peakDot = `<circle cx="${xp(peakIdx).toFixed(1)}" cy="${ys(allData[peakIdx].pat).toFixed(1)}" r="3" fill="#3D754E" opacity="0.7"/>`;
+
+  // Eventos pontuais no SVG do PDF
+  // Labels ficam na faixa reservada acima das barras (padT=52)
+  // Linha 0 (topo): y=6  — labels ímpares
+  // Linha 1:        y=20 — labels pares
+  // Linha 2:        y=34 — overflow (3+ eventos)
+  // Linha "aposentadoria" fica em y=padT+0 (só tem 13px, começa em 0)
+  // Então eventos começam em y=18 para não colidir
+  const EV_ROWS = [6, 20, 36]; // top of each label row
+  let evAnnotations = '';
+  eventos.forEach((ev, i) => {
+    const idx = allData.findIndex(d => Math.round(d.age) === Math.round(ev.idade));
+    if (idx < 0) return;
+    const isEntry = ev.tipo === 'e';
+    const cor = isEntry ? '#2a7a48' : '#c0392b';
+    const evX = xp(idx);
+    const nome = ev.nome || (isEntry ? 'Entrada' : 'Saída');
+    const labelNome = nome + '  ' + fmtN(ev.valor);
+    const labelW = Math.min(labelNome.length * 5.0 + 14, 140);
+    const rowY = EV_ROWS[i % EV_ROWS.length]; // top edge of label
+    const lx = Math.min(Math.max(evX - labelW/2, padL), cW - padR - labelW);
+    evAnnotations += `
+    <line x1="${evX.toFixed(1)}" y1="0" x2="${evX.toFixed(1)}" y2="${baseY.toFixed(1)}"
+      stroke="${cor}" stroke-width="1" stroke-dasharray="3,3" opacity="0.55"/>
+    <rect x="${lx.toFixed(1)}" y="${rowY}" width="${labelW.toFixed(1)}" height="12"
+      rx="3" fill="${isEntry ? 'rgba(42,122,72,0.18)' : 'rgba(192,57,43,0.15)'}"/>
+    <text x="${(lx + labelW/2).toFixed(1)}" y="${(rowY + 8.5).toFixed(1)}"
+      text-anchor="middle" font-size="7.2" fill="${cor}" font-weight="700"
+      font-family="Helvetica Neue,Arial,sans-serif">${isEntry ? '▲' : '▼'} ${labelNome}</text>`;
+  });
 
   const chartSVG = `<svg viewBox="0 0 ${cW} ${cH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block">
     <defs><linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
@@ -1213,7 +1360,7 @@ function gerarPDF() {
     <path d="${areaPath}" fill="url(#areaGrad)"/>
     ${bars}
     <path d="${linePts}" fill="none" stroke="#3D754E" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
-    ${peakDot}${aposLine}${xLabels}
+    ${peakDot}${aposLine}${evAnnotations}${xLabels}
   </svg>`;
 
   const insights = [];
@@ -1298,6 +1445,24 @@ ${insightHTML}
   <div class="pitem"><span class="pl">Rent. pré (real)</span><span class="pv">${(p.rentReal*100).toFixed(1)}% a.a.</span></div>
   <div class="pitem"><span class="pl">Rent. pós (real)</span><span class="pv">${(p.rentApos*100).toFixed(1)}% a.a.</span></div>
 </div>
+
+${(() => {
+  if (!eventos.length) return '';
+  const items = eventos.map(ev => {
+    const isEntry = ev.tipo === 'e';
+    const cor = isEntry ? '#2d6840' : '#c0392b';
+    const sinal = isEntry ? '+' : String.fromCharCode(8722);
+    const nome = ev.nome || (isEntry ? 'Entrada' : 'Saída');
+    return '<div class="pitem" style="border-left:3px solid '+cor+'">'
+      + '<span class="pl">'+nome+'<br><span style="color:'+cor+';font-weight:600">'+sinal+' '+fmtN(ev.valor)+'</span></span>'
+      + '<span class="pv">'+ev.idade+'a</span>'
+      + '</div>';
+  }).join('');
+  return '<div class="sec" style="margin-top:10px">Eventos pontuais</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:14px">'
+    + items + '</div>';
+})()}
+
 <div class="footer">
   <span>RTS Partners · Wealth Management${nomeCliente ? ' · ' + nomeCliente : ''}</span>
   <span>Caráter ilustrativo. Não constitui recomendação de investimento.</span>
@@ -1332,9 +1497,8 @@ function zerarSimulador() {
   document.getElementById('m-extra').value    = '0';
   document.getElementById('m-dur').value      = 0;
   document.getElementById('m-ini').value      = 0;
-  document.getElementById('m-pont').value     = '0';
-  setMovTipo('extra', 'e');
-  setMovTipo('pont', 'e');
+  setMovTipo('e');
+  eventos = []; evNextId = 1; renderEventos();
   if (retMode !== 'auto') setRetMode('auto');
   else recalc();
 }
@@ -1361,11 +1525,10 @@ function capturarParams() {
     rentap: document.getElementById('p-rentap').value,
     inf:    document.getElementById('p-inf').value,
     retMode, retFixa: document.getElementById('p-ret-fixa').value,
-    movExtraTipo, movPontTipo,
+    movExtraTipo, eventos: JSON.parse(JSON.stringify(eventos)), evNextId,
     extra:  document.getElementById('m-extra').value,
     dur:    document.getElementById('m-dur').value,
     ini:    document.getElementById('m-ini').value,
-    pont:   document.getElementById('m-pont').value,
   };
 }
 
@@ -1384,9 +1547,8 @@ function carregarParams(p) {
   document.getElementById('m-extra').value  = p.extra  || '0';
   document.getElementById('m-dur').value    = p.dur    || 0;
   document.getElementById('m-ini').value    = p.ini    || 55;
-  document.getElementById('m-pont').value   = p.pont   || '0';
-  if (p.movExtraTipo) setMovTipo('extra', p.movExtraTipo);
-  if (p.movPontTipo)  setMovTipo('pont',  p.movPontTipo);
+  if (p.movExtraTipo) setMovTipo(p.movExtraTipo);
+  if (p.eventos) { eventos = p.eventos; evNextId = p.evNextId || (eventos.length ? Math.max(...eventos.map(e=>e.id))+1 : 1); renderEventos(); }
   if (p.retMode && p.retMode !== retMode) setRetMode(p.retMode);
   else recalc();
 }
